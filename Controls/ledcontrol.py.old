@@ -1,0 +1,564 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+import Adafruit_PCA9685  #module for PWM driver board
+import time, random, threading, queue, json, os, sys, sqlite3
+from colors import Color
+from LED import LED
+from sqlhelper import sqlhelper
+from datetime import datetime, timedelta
+
+pwm = Adafruit_PCA9685.PCA9685() #init for PWM driver
+pwm.set_pwm_freq(200)
+sqlhelper = sqlhelper()
+
+class System():
+
+  def __init__(self):
+      try:
+        status = sqlhelper.readstatus()
+        self.program = status["program"]
+        self.delay = status["delay"]
+        self.bright = status["bright"]
+        self.power = status["power"]
+        self.mode = status["mode"]
+        self.shifter = status["shifter"]
+        self.timerset = status["timerset"]
+        self.ontime = datetime.strptime(status["ontime"],"%H:%M")
+        self.offtime = datetime.strptime(status["offtime"],"%H:%M")
+      except:
+        self.program = 0
+        self.delay = 0.5
+        self.bright = 1.0
+        self.power = 0
+        self.mode = 1
+        self.shifter = 0
+        self.timerset = 0
+        self.ontime = datetime.strptime("18:30","%H:%M")
+        self.offtime = datetime.strptime("6:30","%H:%M")
+      led1 = LED(0,1,2) #instantiate 3 LED objects for this 3 LED system
+      led2 = LED(3,4,5) #LED(R,G,B) = PWM board pin numbers
+      led3 = LED(6,7,8)
+      global c #dicts used for holding color object references
+      global d
+      global e #  {primary key: color name}
+      c,d,e = sqlhelper.updatedicts()
+      global t
+      t = [led1, led2, led3] #list used to cycle through for modes
+
+  def writestatus(self):
+      now = datetime.now().strftime('%b %d, %Y %H:%M:%S')
+      lights = "{0} {1} {2}".format(t[0].color, t[1].color, t[2].color)
+      update = (self.program, self.delay, self.bright, lights,
+                self.power, self.mode, self.shifter, self.timerset,
+                self.ontime.strftime("%H:%M"), self.offtime.strftime("%H:%M"), now)
+      sqlhelper.writeupdate(update)
+
+  def turnon(self, color): # color must be a color object
+      for x in t:
+          pwm.set_pwm(x.redpin, 0, int(color.redpwm*self.bright))
+          pwm.set_pwm(x.greenpin, 0, int(color.greenpwm*self.bright))
+          pwm.set_pwm(x.bluepin, 0, int(color.bluepwm*self.bright))
+          x.redpwm = int(color.redpwm*self.bright)
+          x.greenpwm = int(color.greenpwm*self.bright)
+          x.bluepwm = int(color.bluepwm*self.bright)
+          if color in d: x.color = d[color]
+
+  def turnon3separate(self, colors): # colors must be list of color objects
+      y = 0
+      for x in t:
+          pwm.set_pwm(x.redpin, 0, int(colors[y].redpwm*self.bright))
+          pwm.set_pwm(x.greenpin, 0, int(colors[y].greenpwm*self.bright))
+          pwm.set_pwm(x.bluepin, 0, int(colors[y].bluepwm*self.bright))
+          x.redpwm = int(colors[y].redpwm*self.bright)
+          x.greenpwm = int(colors[y].greenpwm*self.bright)
+          x.bluepwm = int(colors[y].bluepwm*self.bright)
+          if colors[y] in d: x.color = d[colors[y]]
+          y += 1
+          if y >= len(colors): y = 0
+          
+  def turnoff(self):
+      for x in t:
+          pwm.set_pwm(x.redpin, 0, 0)
+          pwm.set_pwm(x.greenpin, 0, 0)
+          pwm.set_pwm(x.bluepin, 0, 0)
+          x.redpwm = 0
+          x.greenpwm = 0
+          x.bluepwm = 0
+
+  def fadeoff(self):
+    u = []
+    for x in t:
+      limit = max(x.redpwm, x.greenpwm, x.bluepwm)
+      u.append(limit)
+    limit = max(u)
+    for i in range(int(limit/100)):
+      for x in t:
+        if 100*i <= x.redpwm:
+          pwm.set_pwm(x.redpin, 0, x.redpwm - 100*i)
+        else:
+          pwm.set_pwm(x.redpin, 0, 0) 
+        if 100*i <= x.greenpwm:
+          pwm.set_pwm(x.greenpin, 0, x.greenpwm - 100*i)
+        else:
+          pwm.set_pwm(x.greenpin, 0, 0) 
+        if 100*i <= x.bluepwm:
+          pwm.set_pwm(x.bluepin, 0, x.bluepwm - 100*i)
+        else:
+          pwm.set_pwm(x.bluepin, 0, 0) 
+      time.sleep(.001)
+    for x in t:
+      pwm.set_pwm(x.redpin, 0, 0)
+      pwm.set_pwm(x.greenpin, 0, 0)
+      pwm.set_pwm(x.bluepin, 0, 0)  
+      x.redpwm = 0
+      x.greenpwm = 0
+      x.bluepwm = 0
+
+  def shift3separate(self, tocolors):  #tocolors must be list of color objects
+    u = []
+    y = 0
+    for x in t:
+      maxdiff = max(abs(x.redpwm - tocolors[y].redpwm*self.bright), abs(x.greenpwm - tocolors[y].greenpwm*self.bright), abs(x.bluepwm - tocolors[y].bluepwm*self.bright))
+      x.reddiff = abs(x.redpwm - tocolors[y].redpwm*self.bright)
+      x.greendiff = abs(x.greenpwm - tocolors[y].greenpwm*self.bright)
+      x.bluediff = abs(x.bluepwm - tocolors[y].bluepwm*self.bright)
+      u.append(maxdiff)
+      y += 1
+      if y >= len(t): y = 0
+    maxdiff = max(u)
+    y = 0
+    for i in range(int(maxdiff/100)):
+      for x in t:
+        if 100*i <= x.reddiff:
+          if x.redpwm < tocolors[y].redpwm*self.bright:
+            pwm.set_pwm(x.redpin, 0, x.redpwm + 100*i)
+          elif x.redpwm > tocolors[y].redpwm*self.bright:
+            pwm.set_pwm(x.redpin, 0, x.redpwm - 100*i)
+        else:
+          pwm.set_pwm(x.redpin, 0, int(tocolors[y].redpwm*self.bright))
+        if 100*i <= x.greendiff:
+          if x.greenpwm < tocolors[y].greenpwm*self.bright:
+            pwm.set_pwm(x.greenpin, 0, x.greenpwm + 100*i)
+          elif x.greenpwm > tocolors[y].greenpwm*self.bright:
+            pwm.set_pwm(x.greenpin, 0, x.greenpwm - 100*i)
+        else:
+          pwm.set_pwm(x.greenpin, 0, int(tocolors[y].greenpwm*self.bright))
+        if 100*i <= x.bluediff:
+          if x.bluepwm < tocolors[y].bluepwm*self.bright:
+            pwm.set_pwm(x.bluepin, 0, x.bluepwm + 100*i)
+          elif x.bluepwm > tocolors[y].bluepwm*self.bright:
+            pwm.set_pwm(x.bluepin, 0, x.bluepwm - 100*i)
+        else:
+          pwm.set_pwm(x.bluepin, 0, int(tocolors[y].bluepwm*self.bright))
+        y += 1
+        if y >= len(t): y = 0
+    y = 0
+    for x in t:
+      pwm.set_pwm(x.redpin, 0, int(tocolors[y].redpwm*self.bright))
+      pwm.set_pwm(x.greenpin, 0, int(tocolors[y].greenpwm*self.bright))
+      pwm.set_pwm(x.bluepin, 0, int(tocolors[y].bluepwm*self.bright))
+      x.redpwm = int(tocolors[y].redpwm*self.bright)
+      x.greenpwm = int(tocolors[y].greenpwm*self.bright)
+      x.bluepwm = int(tocolors[y].bluepwm*self.bright)
+      if tocolors[y] in d: x.color = d[tocolors[y]]
+      y += 1
+      if y >= len(t): y = 0
+
+  def shift(self, tocolor): # tocolor must be color object
+    u = []
+    for x in t:
+      maxdiff = max(abs(x.redpwm - tocolor.redpwm*self.bright), abs(x.greenpwm - tocolor.greenpwm*self.bright), abs(x.bluepwm - tocolor.bluepwm*self.bright))
+      x.reddiff = abs(x.redpwm - tocolor.redpwm*self.bright)
+      x.greendiff = abs(x.greenpwm - tocolor.greenpwm*self.bright)
+      x.bluediff = abs(x.bluepwm - tocolor.bluepwm*self.bright)
+      u.append(maxdiff)
+    maxdiff = max(u)
+    for i in range(int(maxdiff/100)):
+      for x in t:
+        if 100*i <= x.reddiff:
+          if x.redpwm < tocolor.redpwm*self.bright:
+            pwm.set_pwm(x.redpin, 0, x.redpwm + 100*i)
+          elif x.redpwm > tocolor.redpwm*self.bright:
+            pwm.set_pwm(x.redpin, 0, x.redpwm - 100*i)
+        else:
+          pwm.set_pwm(x.redpin, 0, int(tocolor.redpwm*self.bright))
+        if 100*i <= x.greendiff:
+          if x.greenpwm < tocolor.greenpwm*self.bright:
+            pwm.set_pwm(x.greenpin, 0, x.greenpwm + 100*i)
+          elif x.greenpwm > tocolor.greenpwm*self.bright:
+            pwm.set_pwm(x.greenpin, 0, x.greenpwm - 100*i)
+        else:
+          pwm.set_pwm(x.greenpin, 0, int(tocolor.greenpwm*self.bright))
+        if 100*i <= x.bluediff:
+          if x.bluepwm < tocolor.bluepwm*self.bright:
+            pwm.set_pwm(x.bluepin, 0, x.bluepwm + 100*i)
+          elif x.bluepwm > tocolor.bluepwm*self.bright:
+            pwm.set_pwm(x.bluepin, 0, x.bluepwm - 100*i)
+        else:
+          pwm.set_pwm(x.bluepin, 0, int(tocolor.bluepwm*self.bright))
+    for x in t:
+      pwm.set_pwm(x.redpin, 0, int(tocolor.redpwm*self.bright))
+      pwm.set_pwm(x.greenpin, 0, int(tocolor.greenpwm*self.bright))
+      pwm.set_pwm(x.bluepin, 0, int(tocolor.bluepwm*self.bright))
+      x.redpwm = int(tocolor.redpwm*self.bright)
+      x.greenpwm = int(tocolor.greenpwm*self.bright)
+      x.bluepwm = int(tocolor.bluepwm*self.bright)
+      try:
+        x.color = d[tocolor]
+      except:
+        x.color = 0 # color 0 means a custom color
+
+  def siren(self):
+    delay = 1.85*self.delay+.15 #puts delay btwn .33sec and 2 sec
+    initim = time.time()
+    then = initim + delay
+    colors = [c[1],c[6]] # red and blue
+    th = threading.currentThread()
+    y = 0
+    self.turnoff()
+    if self.shifter == 0: self.turnon(colors[y])
+    else:  self.shift(colors[y])
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+        y += 1
+        if y == 2: y = 0
+        self.turnoff()
+        if self.shifter == 0: self.turnon(colors[y])
+        else:  self.shift(colors[y])
+        then = now + delay
+      time.sleep(.001)
+
+  def cyclecolors(self):
+    th = threading.currentThread()
+    initim = time.time()
+    delay = 2.78*self.delay + 0.22 #puts delay between .5 and 3 seconds
+    then = initim + delay
+    colors = []
+    for j in range(1,9):
+      colors.append(c[j])
+    y = 0
+    self.turnoff()
+    if self.shifter == 0: self.turnon(colors[y])
+    else: self.shift(colors[y])
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+        y += 1
+        if y==len(colors): y=0
+        if self.shifter == 0: self.turnon(colors[y])
+        else: self.shift(colors[y])
+        then = now + delay
+      time.sleep(.001)
+
+  def valentines(self):
+    ldelay = 1.25
+    sdelay = .15
+    n = 1
+    th = threading.currentThread()
+    initim = time.time()
+    then = initim + ldelay
+    self.turnoff()
+    for x in t:
+      pwm.set_pwm(x.redpin, 0, int(2000*self.bright))
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+        if n % 2 != 0:
+          for x in t:
+            pwm.set_pwm(x.redpin, 0, int(4000*self.bright))
+          n += 1
+          if n > 4:
+            n = 1
+            then = now + ldelay
+          else:
+            then = now + sdelay
+        else:
+          for x in t:
+            pwm.set_pwm(x.redpin, 0, int(2000*self.bright))
+          then = now + sdelay
+          n += 1
+      else: time.sleep(.001)
+    self.turnoff()
+
+  def holidays(self, e): #e is list of colors []
+    th = threading.currentThread()
+    x = 0
+    y = 1
+    z = 2
+    initim = time.time()
+    delay = 2.78*self.delay+0.22 #puts delay between .5 and 3 seconds
+    then = initim + delay
+    self.turnoff()
+    if self.shifter == 0: self.turnon3separate([e[x],e[y],e[z]])
+    else: self.shift3separate([e[x],e[y],e[z]])
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+          if self.shifter == 0: self.turnon3separate([e[x],e[y],e[z]])
+          else: self.shift3separate([e[x],e[y],e[z]])
+          x += 1
+          if x >= len(e): x = 0
+          y += 1
+          if y >= len(e): y = 0
+          z += 1
+          if z >= len(e): z = 0
+          then = now + delay
+      else: time.sleep(.001)
+    self.turnoff()
+
+  def randomsync(self):
+    th = threading.currentThread()
+    delay = 2.78*self.delay + 0.22 #puts delay between .5 and 3 seconds
+    then = time.time() + delay
+    y = random.randint(1,len(c))
+    if self.shifter == 0: self.turnon(c[y])
+    else: self.shift(c[y])
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+        y = random.randint(1,len(c))
+        if self.shifter == 0: self.turnon(c[y])
+        else: self.shift(c[y])
+        then = now + delay
+      else:
+        time.sleep(.001)
+    self.turnoff()
+
+  def randomcolorasync(self):
+    th = threading.currentThread()
+    delay = 2.78*self.delay + 0.22 #puts delay between .5 and 3 seconds
+    then = time.time() + delay
+    x = self.randcolor()
+    y = self.randcolor()
+    z = self.randcolor()
+    self.turnoff()
+    if self.shifter == 0: self.turnon3separate([x,y,z])
+    else: self.shift3separate([x,y,z])
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+        x = self.randcolor()
+        y = self.randcolor()
+        z = self.randcolor()
+        if self.shifter == 0: self.turnon3separate([x,y,z])
+        else: self.shift3separate([x,y,z])
+        then = now + delay
+      else:
+        time.sleep(.001)
+    self.turnoff()
+
+  def randomasync(self):
+    th = threading.currentThread()
+    delay = 2.78*self.delay + 0.22 #puts delay between .5 and 3 seconds
+    then = time.time() + delay
+    x = random.randint(1,len(c))
+    y = random.randint(1,len(c))
+    z = random.randint(1,len(c))
+    self.turnoff()
+    if self.shifter == 0: self.turnon3separate([c[x],c[y],c[z]])
+    else: self.shift3separate([c[x],c[y],c[z]])
+    while getattr(th, "do_run", True):
+      now = time.time()
+      if now > then:
+        x = random.randint(1,len(c))
+        y = random.randint(1,len(c))
+        z = random.randint(1,len(c))
+        if self.shifter == 0: self.turnon3separate([c[x],c[y],c[z]])
+        else: self.shift3separate([c[x],c[y],c[z]])
+        then = now + delay
+      else:
+        time.sleep(.001)
+    self.turnoff()
+
+  def randcolor(self):
+    a = random.randint(0,255)
+    b = random.randint(0,255)
+    c = random.randint(0,255)
+    x = hex(a<<16|b<<8|c)  #This concatenates the hexcode together
+    x.replace('0x','#')
+    return x
+
+  def checkcodes(self, q):
+    th = threading.currentThread()
+    delay = timedelta(milliseconds=1)
+    then = datetime.now() + delay
+    while getattr(th, "do_run", True):
+      now = datetime.now()
+      if now > then:
+        then = now + delay
+        try:
+          db = sqlite3.connect('/home/pi/DockLights/Controls/db/data.db')
+          cur = db.cursor() 
+          cur.execute('''SELECT command,arg1,arg2,arg3 FROM commands''')
+          data = cur.fetchone()
+          if data[0] == "colors":
+            u = [int(data[1]),int(data[2]),int(data[3])]
+            x = {data[0]:u} #sends "colors" args as list of ints for run() engine
+          elif data[0] == "save":
+            u = [data[1],data[2]]
+            x = {data[0]:u} #sends "save" args as list of str ["name","hexcode"]
+          elif data[0] == "timerset":
+            try:
+              u = [data[1],data[2],data[3]]
+            except:
+              u = data[1]
+            x = {data[0]:u} #sends "timerset" args as list of [int, "ontime", "offtime"]
+          else: x = {str(data[0]):str(data[1])}
+          q.put(x)
+          cur.execute('''DELETE FROM commands WHERE command=?''',(data[0],))
+          db.commit()
+          db.close()
+        except: pass 
+
+  def enginestatuscheck(self):
+      status = sqlhelper.readstatus()
+      if status["power"] == 0: self.writestatus()
+      elif status["program"] == 0:
+        stat = status["lights"]
+        z = [c[stat[0]],c[stat[1]],c[stat[2]]]
+        self.shift3separate(z)
+        self.power = 1
+        self.writestatus()
+      elif status["program"] == 1:
+        self.mode = status["mode"]
+        if self.mode in m2:
+          t2 = threading.Thread(target=m[self.mode],args=(m2[self.mode],))
+        else: t2 = threading.Thread(target=m[self.mode])
+        t2.daemon = True
+        t2.start()
+        self.power = 1
+        self.writestatus()
+ 
+  def timerengine(self,now): # now must be datetime object
+      if self.timerset == 1:
+        if self.ontime.hour == now.hour and self.ontime.minute == now.minute: 
+          if self.power == 0:
+            self.power = 1
+            self.writestatus()
+            self.enginestatuscheck()
+        if self.offtime.hour == now.hour and self.offtime.minute == now.minute:
+          if self.power == 1:
+            self.fadeoff()
+            self.power = 0
+            self.writestatus()
+  
+  def run(self):
+    c,d,e = sqlhelper.updatedicts()
+    m = {1:self.siren,2:self.cyclecolors,3:self.valentines,4:self.holidays,5:self.holidays,
+         6:self.randomsync,7:self.randomasync,8:self.randomcolorasync,9:self.holidays}
+    m2 = {4:[c[1],c[8],c[4]],5:[c[1],c[6],c[8]],9:[c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8]]}
+    q = queue.Queue()
+    t1 = threading.Thread(target=self.checkcodes,args=(q,))
+    t1.daemon = True
+    t1.start()
+    delay = timedelta(milliseconds=1)
+    then = datetime.now() + delay
+    while True:
+      now = datetime.now()
+      if now > then:
+        then = now + delay
+        self.timerengine(now)
+        try:
+          y = q.get()
+          try:
+            t2.do_run = False
+          except: pass
+          if y.get("power"):
+            if int(y["power"]) == 0:
+              self.fadeoff()
+              self.power = 0
+              self.writestatus()
+              print("Power turned off")
+            elif int(y["power"]) == 1:
+              self.power = 1
+              self.writestatus()
+              self.enginestatuscheck()
+              print("Power turned on")
+          if y.get("shifter"):
+            self.shifter = y["shifter"]
+            self.writestatus()
+            self.enginestatuscheck()
+            print("Shifter updated")
+          if y.get("colors"):
+            z = []
+            for s in y["colors"]:
+              z.append(c[s])
+            self.shift3separate(z)
+            self.power = 1
+            self.program = 0
+            self.writestatus()
+            print("Colors updated")
+          if y.get("color"):
+            x = Color(y["color"])
+            self.shift(x)
+            self.power = 1
+            self.program = 0
+            self.writestatus()
+            print("Custom color")
+          if y.get("bright"):
+            self.bright = float(y["bright"])
+            self.writestatus()
+            self.checkenginestatus()
+            print("Brightness updated")
+          if y.get("delay"):
+            self.delay = y["delay"] 
+            self.writestatus()
+            self.checkenginestatus()
+            print("Delay updated")
+          if y.get("mode"):
+            self.mode = y["mode"]
+            self.program = 1
+            if self.mode in m2:
+              t2 = threading.Thread(target=m[self.mode],args=(m2[self.mode],))
+            else: t2 = threading.Thread(target=m[self.mode])
+            t2.daemon = True
+            t2.start()
+            self.power = 1
+            self.writestatus()
+            print("Mode updated")
+          if y.get("save"):
+            u = y["save"] # will give list ["name","hexcode"]
+            sqlhelper.addcolortodb(u[0],u[1])
+            c,d,e = sqlhelper.updatedicts()
+            self.writestatus()
+            self.checkenginestatus()
+            print("New color saved")
+          if y.get("delete"):
+            u = y["delete"] # will give hexcode string
+            self.deletecolorfromdb(u)
+            c,d,e = sqlhelper.updatedicts()
+            self.writestatus()
+            self.checkenginestatus()
+            print("Color removed")
+          if y.get("timerset"):
+            u = y["timerset"]
+            self.timerset = u[0]
+            if self.timerset == 1:
+              self.ontime = datetime.strptime(u[1],"%H:%M")
+              self.offtime = datetime.strptime(u[2],"%H:%M")
+            self.writestatus()
+            self.checkenginestatus()
+            print("Timer updated")
+          time.sleep(.1)
+        except KeyboardInterrupt:
+          print("\nYou pressed Ctrl+C or somethin fucked up")
+          break
+    try:
+      t1.do_run = False
+      t1.join()
+      t2.do_run = False
+      t2.join()
+    except: pass
+
+if __name__=="__main__":
+  sys = System() #create object
+  c,d,e = sqlhelper.updatedicts()
+  sys.turnon3separate([c[1],c[4],c[6]])
+  time.sleep(1)
+  sys.turnoff() #turn off
+  sys.writestatus()
+  sys.run() #start main program
+  sys.turnoff()
+  print("Done")

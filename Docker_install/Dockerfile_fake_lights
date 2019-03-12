@@ -1,0 +1,13 @@
+FROM python:3.5.5-jessie
+
+EXPOSE 80
+COPY Docker_install/requirements.txt /requirements.txt
+RUN pip3 install -r /requirements.txt --upgrade pip
+COPY application /application
+COPY Controls /Controls
+COPY run.py /run.py
+COPY test/fake_lights.py /fake_lights.py
+COPY Docker_install/setup.py /setup.py
+RUN pip3 install -e /
+
+CMD ["python", "/fake_lights.py"]

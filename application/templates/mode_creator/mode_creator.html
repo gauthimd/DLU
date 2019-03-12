@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block page_scripts %}
+    <script type="text/javascript">
+
+        {#TODO Set this up    #}
+        {# Set up our draggable events #}
+        $('.draggable').each(function () {
+            $(this).data('event', {
+                color: 'red',
+                stick: true // maintain when user navigates (see docs on the renderEvent method)
+            });
+            $(this).draggable({ // make the event draggable using jQuery UI
+                zIndex: 999,
+                revert: true,      // will cause the event to go back to its
+                revertDuration: 0  //  original position after the drag
+            });
+        });
+
+        function colorSelect() {
+            var all_selected = true;
+            $('.color-boi').each(function () {
+                if ($(this).val() == null) {
+                    all_selected = false
+                }
+            });
+            if (all_selected == true) {
+                $('#mode_creator_row').append('{% filter remove_whitespace %}{% include "mode_creator/color_select.html" %}{% endfilter %}')
+                $('#save-mode').prop('disabled', false);
+            }
+        }
+
+        function saveMode() {
+            var colorList = [];
+            window.event.preventDefault();
+            $('#mode_name_error').html('');
+            if ($('#mode_name').val().trim() == '') {
+                $('#mode_name_error').html('Please select a name')
+            }
+            else {
+                $('#modeModal').modal('hide');
+                $('#load_icon_1').show();
+                $('.color-boi').each(function () {
+                    if ($(this).val() != null) {
+                        colorList.push($(this).val());
+                    }
+                });
+                $('#mode_colors_form').find('input[name=name]').val($('#mode_name').val());
+                $('#mode_colors_form').find('input[name=colors]').val(colorList);
+                $.ajax({
+                    type: "POST",
+                    data: $('#mode_colors_form').serializeArray(),
+                    url: "{{ url_for('save_mode') }}",
+                    success: function () {
+                        setTimeout(function () {
+                            $('#load_icon_1').hide();
+                            location.reload();
+                        }, 500);
+
+                    },
+                    error: function (data, status, request) {
+                        setTimeout(function () {
+                            $('#load_icon_1').hide();
+                            location.reload();
+                        }, 500);
+                    }
+                });
+            }
+        }
+
+        function deleteMode(mode_id) {
+            window.event.preventDefault();
+            $('#load_icon_1').show();
+            $('#mode_id').val(mode_id);
+            $.ajax({
+                type: "POST",
+                data: $('#delete_mode').serializeArray(),
+                url: "{{ url_for('delete_mode') }}",
+                success: function () {
+                    setTimeout(function () {
+                        $('#load_icon_1').hide();
+                        location.reload();
+                    }, 500);
+                },
+                error: function (data, status, request) {
+                    setTimeout(function () {
+                        $('#load_icon_1').hide();
+                        location.reload();
+                    }, 500);
+                }
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container" style="padding-bottom: 10%;">
+        <div class="row" id="timer_power_row" style="padding-bottom: 1%;">
+            <div class="col-xs-6 col-sm-6 col-md-3 col-lg-3">
+
+            </div>
+        </div>
+        <div class="panel-group show" id="accordion">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#cccollapse">Mode Creator</a>
+                    </h4>
+                </div>
+                <div id="cccollapse" class="panel-collapse collapse in">
+                    <div class="panel-body">
+                        <div id="color_bars" class="panel-body col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                            <form id="mode_colors_form">
+                                <input name="name" class="hidden">
+                                <input name="colors" class="hidden">
+                                <div class="row" id="mode_creator_row">
+                                    {% include "mode_creator/color_select.html" %}
+                                    {% include "mode_creator/color_select.html" %}
+                                </div>
+                            </form>
+                            <div class="row" style="margin-top: 20px;">
+                                <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+                                    <button id="save-mode" class="btn btn-primary"
+                                            style="width: 100%; margin-top: 25px;" disabled
+                                            onclick="$('#modeModal').modal('show');">Click to Save
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#custom_modes_collapse">Custom
+                            Modes</a>
+                    </h4>
+                </div>
+                <div id="custom_modes_collapse" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div id="custom_modes" class="panel-body col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                            {% if config.get('CUSTOM_MODES')|length > 0 %}
+                                {% for id, mode_dict in config.get('CUSTOM_MODES').items() %}
+                                    {% if loop.index > 1 %}
+                                        <hr>
+                                    {% endif %}
+                                    <div class="row">
+                                        <div class="pull-left">
+                                            <button class="btn" onclick="$('#modeDetailsModal{{ id }}').modal('show')">
+                                                {{ mode_dict['name'] }}
+                                            </button>
+                                        </div>
+                                        <div class="pull-right">
+                                            {% if g.status.get('program') == config.get('PROGRAM')['Mode'] and
+                                            id == g.status['mode'] %}
+                                                <button class="btn btn-danger"
+                                                        onclick="alert('You cannot delete an active mode.')">
+                                            {% else %}
+                                                <button class="btn btn-danger" onclick="deleteMode({{ id }})">
+                                            {% endif %}
+                                            Delete Mode
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div>You haven't created any custom modes yet!</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="delete_mode" class="hidden">
+        <input id="mode_id" name="mode_id">
+    </form>
+
+    {% for id, mode_dict in config.get('CUSTOM_MODES').items() %}
+        {% include "mode_creator/mode_details_modal.html" %}
+    {% endfor %}
+
+    {% include "mode_creator/save_modal.html" %}
+{% endblock %}

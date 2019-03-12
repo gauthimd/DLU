@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% set program_mode = '' %}
+{% set prgram_led = '' %}
+{% if g.status.get('program') == config.get('PROGRAM')['Mode']|int %}
+    {% set program_mode = 'in' %}
+{% else %}
+    {% set program_led = 'in' %}
+{% endif %}
+
+
+{% block page_scripts %}
+    <script type="text/javascript">
+        function change_power(power_boolean) {
+            window.event.preventDefault();
+            $('#load_icon_1').show();
+            fade_out_remote();
+            $('#power').val(power_boolean);
+            $.ajax({
+                type: 'POST',
+                data: $('#power_form').serializeArray(),
+                url: "/change-power/",
+                success: function () {
+                    setTimeout(get_status_data, 3000);
+                },
+                error: function (data, status, request) {
+                    $('#load_icon_1').hide();
+                }
+            });
+        }
+
+        function change_leds(e) {
+            window.event.preventDefault();
+            e.fadeTo('slow', 0.3);
+            var led_1 = null;
+            var led_2 = null;
+            var led_3 = null;
+            var all_leds = $('#all_leds').val();
+            $('#led_error_1').text('');
+            $('#led_error_2').text('');
+            $('#led_error_3').text('');
+            if (e.attr('id') == 'all_leds') {
+                fade_out_color_row();
+                fade_out_power_row();
+                led_1 = all_leds;
+                led_2 = all_leds;
+                led_3 = all_leds;
+            }
+            else {
+                $('#all_leds').fadeTo('slow', 0.3);
+                fade_out_power_row();
+                $('#all_leds').val('none');
+                led_1 = $('#led_input_1').val();
+                led_2 = $('#led_input_2').val();
+                led_3 = $('#led_input_3').val();
+            }
+            if (led_1 == null) {
+                $('#led_error_1').text('Pick a color');
+            }
+            if (led_2 == null) {
+                $('#led_error_2').text('Pick a color');
+            }
+            if (led_3 == null) {
+                $('#led_error_3').text('Pick a color');
+            }
+
+            if (led_1 != null && led_2 != null && led_3 != null) {
+                $('#load_icon_1').show();
+                $('#led_1').val(led_1);
+                $('#led_2').val(led_2);
+                $('#led_3').val(led_3);
+                $.ajax({
+                    type: "POST",
+                    data: $("#leds").serializeArray(),
+                    url: "/change-leds/",
+                    success: function () {
+                        setTimeout(get_status_data, 3000);
+                    },
+                    error: function (data, status, request) {
+                        $('#load_icon_1').hide();
+                    }
+                })
+            }
+        }
+
+
+        function change_mode() {
+            window.event.preventDefault();
+            var mode = $('#mode_input').val();
+            $('#load_icon_1').show();
+            $('#mode').val(mode);
+            fade_out_mode_row();
+            fade_out_power_row();
+            $.ajax({
+                type: "POST",
+                data: $("#mode_form").serializeArray(),
+                url: "/change-mode/",
+                success: function () {
+                    setTimeout(get_status_data, 3000);
+                },
+                error: function (data, status, request) {
+                    $('#load_icon_1').hide();
+                }
+            })
+        }
+
+        function change_brightness() {
+            window.event.preventDefault();
+            var brightness = $('#brightness_input').val();
+            $('#load_icon_1').show();
+            $('#brightness').val(brightness);
+            fade_out_remote();
+            fade_out_power_row();
+            $.ajax({
+                type: "POST",
+                data: $("#brightness_form").serializeArray(),
+                url: "/change-brightness/",
+                success: function () {
+                    setTimeout(get_status_data, 3000);
+                },
+                error: function (data, status, request) {
+                    $('#load_icon_1').hide();
+                }
+            })
+        }
+
+        function change_delay() {
+            window.event.preventDefault();
+            var delay = $('#delay_input').val();
+            $('#load_icon_1').show();
+            $('#delay').val(delay);
+            fade_out_mode_row();
+            fade_out_power_row();
+            $.ajax({
+                type: "POST",
+                data: $("#delay_form").serializeArray(),
+                url: "/change-delay/",
+                success: function () {
+                    setTimeout(get_status_data, 3000);
+                },
+                error: function (data, status, request) {
+                    $('#load_icon_1').hide();
+                }
+            })
+        }
+
+        function change_shifter() {
+            window.event.preventDefault();
+            var shifter = $('#shifter_input').val();
+            $('#load_icon_1').show();
+            $('#shifter').val(shifter);
+            fade_out_mode_row();
+            fade_out_power_row();
+            $.ajax({
+                type: "POST",
+                data: $("#shifter_form").serializeArray(),
+                url: "/change-shifter/",
+                success: function () {
+                    setTimeout(get_status_data, 3000);
+                },
+                error: function (data, status, request) {
+                    $('#load_icon_1').hide();
+                }
+            })
+        }
+
+        function change_sync() {
+            window.event.preventDefault();
+            var sync = $('#sync_input').val();
+            $('#load_icon_1').show();
+            $('#sync').val(sync);
+            fade_out_mode_row();
+            fade_out_power_row();
+            $.ajax({
+                type: "POST",
+                data: $("#sync_form").serializeArray(),
+                url: "/change-sync/",
+                success: function () {
+                    setTimeout(get_status_data, 3000);
+                },
+                error: function (data, status, request) {
+                    $('#load_icon_1').hide();
+                }
+            })
+        }
+
+        function fade_out_mode_row() {
+            $('#modecollapse').fadeTo('slow', 0.3);
+        }
+
+        function fade_out_color_row() {
+            $('#colorcollapse').fadeTo('slow', 0.3);
+        }
+
+        function fade_out_power_row() {
+            $('#brightness_input').fadeTo('slow', 0.3);
+            $('#power_button_wrapper').fadeTo('slow', 0.3);
+        }
+
+        function fade_out_remote() {
+            fade_out_power_row();
+            $('#modecollapse').fadeTo('slow', 0.0);
+            $('#colorcollapse').fadeTo('slow', 0.0);
+        }
+
+    </script>
+
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row" style="padding-bottom: 1%;">
+            <div id="power_button_wrapper" class="col-lg-3 col-md-3 col-sm-6 col-xs-6">
+                {% include "homepage/power_icon.html" %}
+            </div>
+            <div class="col-lg-6 col-md-6 col-sm-0 col-xs-0"></div>
+            {% if g.status.get('power') == True %}
+                <div id="brightness_wrapper" class="col-lg-3 col-md-3 col-sm-6 col-xs-6">
+                    {% include "homepage/brightness.html" %}
+                </div>
+            {% endif %}
+        </div>
+        {% if g.status.get('power') == True %}
+            <div class="panel-group" id="accordion">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            <a data-toggle="collapse" data-parent="#accordion" href="#colorcollapse">LED Control</a>
+                        </h4>
+                    </div>
+                    <div id="colorcollapse" class="panel-collapse collapse {{ program_led }}">
+                        <div class="panel-body">
+                            <div id="led_wrapper" class="panel-body col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                                {% include "homepage/leds.html" %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            <a data-toggle="collapse" data-parent="#accordion" href="#modecollapse">Mode Control</a>
+                        </h4>
+                    </div>
+                    <div id="modecollapse" class="panel-collapse collapse {{ program_mode }}">
+                        <div class="panel-body">
+                            <div id="mode_wrapper"
+                                 class="container form-group col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                                {% include "homepage/modes.html" %}
+                            </div>
+                            {% if program_mode == 'in' %}
+                                <div id="delay_wrapper"
+                                     class="form-group col-lg-4 col-md-4 col-sm-4 col-xs-12">
+                                    {% include "homepage/delay.html" %}
+                                </div>
+                                <div id="shifter_wrapper"
+                                     class="container form-group col-lg-4 col-md-4 col-sm-4 col-xs-12">
+                                    {% include "homepage/shifter.html" %}
+                                </div>
+                                <div id="sync_wrapper"
+                                     class="container form-group col-lg-4 col-md-4 col-sm-4 col-xs-12">
+                                    {% include "homepage/sync.html" %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

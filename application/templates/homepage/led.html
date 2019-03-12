@@ -1,0 +1,12 @@
+<label>LED {{ led_id }}</label><label id="led_error_{{ led_id }}" class="led_error"></label>
+<select id="led_input_{{ led_id }}" name="color" class="form-control input-lg" onchange="change_leds($(this));">
+    <option value="none" class="form-control input-lg" selected disabled>- Select Color -</option>
+    {% for id, color in config.get('COLORS').items() %}
+        {% if g.status.get('program')|int == config.get('PROGRAM')['Color']|int and not g.status['leds_match']
+        and g.status['lights'][led_id|int - 1]|int == id|int %}
+            <option value="{{ id }}" class="form-control input-lg" selected>{{ color }}</option>
+        {% else %}
+            <option value="{{ id }}" class="form-control input-lg">{{ color }}</option>
+        {% endif %}
+    {% endfor %}
+</select>

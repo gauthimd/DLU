@@ -1,0 +1,18 @@
+<div class="form-group">
+    <label>Sync Type</label>
+    <select id="sync_input" class="form-control input-lg" onchange="change_sync();">
+        {% if g.status.get('program')|int != config.get('PROGRAM')['Mode']|int %}
+            <option value="none" class="form-control input-lg" selected disabled>- Sync Selector -</option>
+        {% endif %}
+        {% for id, sync in config.get('SYNC').items() %}
+            {% if g.status.get('program') == config.get('PROGRAM')['Mode'] and g.status.get('sync') == id|int %}
+                <option value="{{ id }}" class="form-control input-lg" selected>{{ sync }}</option>
+            {% else %}
+                <option value="{{ id }}" class="form-control input-lg">{{ sync }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    <form id="sync_form" class="hidden">
+        <input id="sync" name="sync"/>
+    </form>
+</div>

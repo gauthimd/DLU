@@ -1,0 +1,24 @@
+<nav class="navbar navbar-default navbar-inverse">
+    <div class="container">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <div class="navbar-header">
+            {#            <a class="navbar-brand">DockLights</a>#}
+            <a href="{{ url_for('homepage') }}">
+                <img src="{{ url_for('static', filename='icons/logo.png') }}"
+                     height="50px" width="85px">
+            </a>
+        </div>
+        <div class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="{{ url_for('homepage') }}">Remote</a></li>
+                <li><a href="{{ url_for('timer_settings') }}">Timer</a></li>
+                <li><a href="{{ url_for('color_creator') }}">Color Creator</a></li>
+                <li><a href="{{ url_for('mode_creator') }}">Mode Creator</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>

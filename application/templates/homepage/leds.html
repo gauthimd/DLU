@@ -1,0 +1,39 @@
+{% if g.status['leds_match'] %}
+    {% set this = True %}
+{% endif %}
+
+<div class="col-lg-12">
+    <label>All LEDs</label>
+    <select id="all_leds" class="form-control input-lg" onchange="change_leds($(this));">
+        <option value="none" class="form-control input-lg" selected disabled>- Select Color -</option>
+        {% for id, color in config.get('COLORS').items() %}
+            {% if g.status.get('led_color')|int==id|int %}
+                <option value="{{ id }}" class="form-control input-lg" selected>{{ color }}</option>
+            {% else %}
+                <option value="{{ id }}" class="form-control input-lg">{{ color }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+</div>
+<div class="form-group" style="padding-top: 5%">
+    {% with led_id = "1" %}
+        <div class="col-lg-4 col-md-4">
+            {% include "homepage/led.html" %}
+        </div>
+    {% endwith %}
+    {% with led_id = "2" %}
+        <div class="col-lg-4 col-md-4">
+            {% include "homepage/led.html" %}
+        </div>
+    {% endwith %}
+    {% with led_id = "3" %}
+        <div class="col-lg-4 col-md-4">
+            {% include "homepage/led.html" %}
+        </div>
+    {% endwith %}
+</div>
+<form id="leds" class="hidden">
+    <input id="led_1" name="led_1"/>
+    <input id="led_2" name="led_2"/>
+    <input id="led_3" name="led_3"/>
+</form>

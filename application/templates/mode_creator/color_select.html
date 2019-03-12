@@ -1,0 +1,8 @@
+<select class="form-control input-lg color-boi" onchange="colorSelect();">
+    <option value="none" class="form-control input-lg" selected disabled>
+        - Select Color -
+    </option>
+    {% for id, color in config.get('COLORS').items() %}
+        <option value="{{ id }}" class="form-control input-lg">{{ color }}</option>
+    {% endfor %}
+</select>

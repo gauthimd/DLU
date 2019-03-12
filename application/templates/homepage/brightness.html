@@ -1,0 +1,13 @@
+<label>Brightness</label>
+<select id="brightness_input" class="form-control input-lg" onchange="change_brightness();">
+    {% for i in range(1, 11) %}
+        {% if i / 10 == g.status.get('bright')|float %}
+            <option value="{{ i / 10 }}" class="form-control input-lg" selected>{{ i * 10 }}%</option>
+        {% else %}
+            <option value="{{ i / 10 }}" class="form-control input-lg">{{ i * 10 }}%</option>
+        {% endif %}
+    {% endfor %}
+</select>
+<form id="brightness_form" class="hidden">
+    <input id="brightness" name="brightness"/>
+</form>

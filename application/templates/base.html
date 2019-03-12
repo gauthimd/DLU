@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dock Lights</title>
+    <link rel="icon" href="{{ url_for('static', filename='icons/newfavicon.ico') }}">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet" type="text/css"
+          media="all"/>
+    <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet" type="text/css" media="all"/>
+    <link href="{{ url_for('static', filename='css/jquery.clockinput.css') }}" rel="stylesheet" type="text/css"
+          media="all"/>
+    <link href="{{ url_for('static', filename='css/bootstrap-toggle.css') }}" rel="stylesheet" type="text/css"
+          media="all"/>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/submission.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.clockinput.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap-toggle.js') }}"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("input[type=time]").clockInput();
+
+            $(function () {
+                $('a').each(function () {
+                    if ($(this).prop('href') == window.location.href) {
+                        $(this).addClass('active');
+                        $(this).parents('li').addClass('active');
+                    }
+                });
+            });
+        })
+    </script>
+    {% block page_scripts %}{% endblock %}
+</head>
+<body>
+{% include "load_icon.html" %}
+{% include "navbar.html" %}
+{% block body %}{% endblock %}
+
+</body>
+</html>

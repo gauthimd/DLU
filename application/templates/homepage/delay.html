@@ -1,0 +1,20 @@
+<div class="form-group">
+    <label>Speed</label>
+    <select id="delay_input" class="form-control input-lg" onchange="change_delay();">
+        {% if g.status.get('program')|int == config.get('PROGRAM')['Color']|int %}
+            <option value="none" class="form-control input-lg" selected disabled>- Speed Selector -</option>
+        {% else %}
+        {% for i in range(1, 11) %}
+        {% if i / 10 == g.status.get('delay') %}
+        <option value="{{ i / 10 }}" class="form-control input-lg" selected>{{ 110 - (i * 10) }}%</option>
+        {% else %}
+        <option value="{{ i / 10 }}" class="form-control input-lg">{{110 - (i * 10) }}%</option>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+    </select>
+    <form id="delay_form" class="hidden">
+        <input id="delay" name="delay"/>
+    </form>
+</div>
+

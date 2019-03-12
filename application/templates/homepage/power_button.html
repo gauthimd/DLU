@@ -1,0 +1,10 @@
+<div class="col-lg-3 col-md-3 col-sm-6 col-xs-6">
+    {% if g.status.get('power') != True %}
+        <button class="btn btn-red form-control" onclick="change_power(1);">Off</button>
+    {% else %}
+        <button class="btn btn-secondary form-control" onclick="change_power(0);">Turn Off</button>
+    {% endif %}
+    <form id="power_form" class="hidden">
+        <input name="power" id="power"/>
+    </form>
+</div>

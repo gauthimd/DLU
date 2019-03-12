@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% block page_scripts %}
+    <script type="text/javascript">
+        function changeValue() {
+            var red = $('#redSlider').val();
+            var green = $('#greenSlider').val();
+            var blue = $('#blueSlider').val();
+            $('#hex').text(rgbToHex(red, green, blue));
+            $('#color_sample').css('background', 'rgb(' + red + ' , ' + green + ', ' + blue + ')');
+        }
+
+        function fade_out_cc_row() {
+            $('#cc_collapse').fadeTo('slow', 0.3)
+        }
+
+        function fade_in_cc_row() {
+            $('#cc_collapse').fadeTo('slow', 1.0)
+        }
+
+        function rgbToHex(red, green, blue) {
+            var rgb = blue | (green << 8) | (red << 16);
+            return '#' + (0x1000000 + rgb).toString(16).slice(1)
+        }
+
+        function toggleDemo() {
+            window.event.preventDefault();
+            $('#load_icon_1').show();
+            $.ajax({
+                type: "POST",
+                data: $('#rgb_selector_form').serializeArray(),
+                url: "{{ url_for('demo_color') }}",
+                success: function () {
+                    $('#save_button_wrapper').removeClass('hidden');
+                    setTimeout(function () {
+                        $('#load_icon_1').hide();
+                    }, 500);
+                },
+                error: function (data, status, request) {
+                    setTimeout(function () {
+                        $('#load_icon_1').hide();
+                    }, 500);
+                }
+            });
+        }
+
+        function saveColor() {
+            window.event.preventDefault();
+            $('#color_name_error').html('');
+            if ($('#color_name').val().trim() == '') {
+                $('#color_name_error').html('Please select a name')
+            }
+            else if ({{ config['CUSTOM_HEXES']|safe }}.indexOf($('#hex').text()) > 0) {
+                alert('You have already saved this color!')
+            }
+            else {
+                $('#demoModal').modal('hide');
+                $('#load_icon_1').show();
+                $('#rgb_selector_form').find('input[name=name]').val($('#color_name').val());
+                $.ajax({
+                    type: "POST",
+                    data: $('#rgb_selector_form').serializeArray(),
+                    url: "{{ url_for('save_color') }}",
+                    success: function () {
+                        setTimeout(function () {
+                            $('#load_icon_1').hide();
+                            location.reload();
+                        }, 500);
+
+                    },
+                    error: function (data, status, request) {
+                        setTimeout(function () {
+                            $('#load_icon_1').hide();
+                            location.reload();
+                        }, 500);
+                    }
+                });
+            }
+        }
+
+        function deleteColor(color_id) {
+            window.event.preventDefault();
+            $('#load_icon_1').show();
+            $('#color_id').val(color_id);
+            $.ajax({
+                type: "POST",
+                data: $('#delete_color').serializeArray(),
+                url: "{{ url_for('delete_color') }}",
+                success: function () {
+                    setTimeout(function () {
+                        $('#load_icon_1').hide();
+                        location.reload();
+                    }, 500);
+                },
+                error: function (data, status, request) {
+                    setTimeout(function () {
+                        $('#load_icon_1').hide();
+                        location.reload();
+                    }, 500);
+                }
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container" style="padding-bottom: 10%;">
+        <div class="row" id="timer_power_row" style="padding-bottom: 1%;">
+            <div class="col-xs-6 col-sm-6 col-md-3 col-lg-3">
+
+            </div>
+        </div>
+        <div class="panel-group show" id="accordion">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#cccollapse">Color Creator</a>
+                    </h4>
+                </div>
+                <div id="cccollapse" class="panel-collapse collapse in">
+                    <div class="panel-body">
+                        <div id="color_bars" class="panel-body col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                            <div class="row" id="cc_row">
+                                <div id="hex" class="pull-right"></div>
+                                <form id="rgb_selector_form">
+                                    <label>Red</label>
+                                    <input type="range" min="0" max="255" value="155" class="slider" id="redSlider"
+                                           name="red" oninput="changeValue();">
+                                    <label>Green</label>
+                                    <input type="range" min="0" max="255" value="155" class="slider" id="greenSlider"
+                                           name="green" oninput="changeValue();">
+                                    <label>Blue</label>
+                                    <input type="range" min="0" max="255" value="155" class="slider" id="blueSlider"
+                                           name="blue" oninput="changeValue();">
+                                    <input name="name" class="hidden">
+                                </form>
+                            </div>
+                            <div class="row" style="margin-top: 20px;">
+                                <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+                                    <label>Sample</label>
+                                    <div id="color_sample" style="height: 100px; width: 100px;">&nbsp;</div>
+                                </div>
+                                <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6" style="margin-top: 25px;">
+                                    <button class="btn" style="width: 100%;"
+                                            onclick="toggleDemo();">Click to Demo
+                                    </button>
+                                </div>
+                                <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+                                    <button class="btn btn-primary" style="width: 100%; margin-top: 25px;"
+                                            onclick="$('#demoModal').modal('show');">Click to Save
+                                    </button>
+                                </div>
+                            </div>
+
+                            <script type="text/javascript">
+                                changeValue();
+                            </script>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#custom_colors_collapse">Custom
+                            Colors</a>
+                    </h4>
+                </div>
+                <div id="custom_colors_collapse" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div id="custom_colors" class="panel-body col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                            {% if config.get('CUSTOM_COLORS')|length > 0 %}
+                                {% for id, color_dict in config.get('CUSTOM_COLORS').items() %}
+                                    {% if loop.index > 1 %}
+                                        <hr>
+                                    {% endif %}
+                                    <div class="row">
+                                        <div class="pull-left">
+                                            {{ color_dict['name'] }}
+                                        </div>
+                                        <div class="pull-right">
+                                            {% if g.status.get('program') == config.get('PROGRAM')['Color'] and
+                                            id|string in g.status['lights'] %}
+                                                <button class="btn btn-danger"
+                                                        onclick="alert('You cannot delete an active color.')">
+                                            {% else %}
+                                                <button class="btn btn-danger" onclick="deleteColor({{ id }})">
+                                            {% endif %}
+                                            Delete Color
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div>You haven't created any custom colors yet!</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="delete_color" class="hidden">
+        <input id="color_id" name="color_id">
+    </form>
+
+    {% include "color_creator/demo_modal.html" %}
+{% endblock %}

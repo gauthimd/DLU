@@ -1,0 +1,16 @@
+<label>Mode</label>
+<select id="mode_input" class="form-control input-lg" onchange="change_mode();">
+    {% if g.status.get('program')|int != config.get('PROGRAM')['Mode']|int %}
+    <option value="none" class="form-control input-lg" selected disabled>- Select Mode -</option>
+    {% endif %}
+    {% for id, mode in config.get('MODES').items() %}
+    {% if g.status.get('program') == config.get('PROGRAM')['Mode'] and g.status.get('mode') == id|int %}
+    <option value="{{ id }}" class="form-control input-lg" selected>{{ mode }}</option>
+    {% else %}
+    <option value="{{ id }}" class="form-control input-lg">{{ mode }}</option>
+    {% endif %}
+    {% endfor %}
+</select>
+<form id="mode_form" class="hidden">
+    <input id="mode" name="mode"/>
+</form>

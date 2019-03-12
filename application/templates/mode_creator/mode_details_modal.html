@@ -1,0 +1,31 @@
+<!-- time off request modal -->
+<div class="modal fade" id="modeDetailsModal{{ id }}" tabindex="-1" role="dialog"
+     aria-labelledby="modeDetailsModal{{ id }}Title" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h5 class="modal-title" id="modeDetailsModal{{ id }}Title">{{ mode_dict['name'] }}</h5>
+            </div>
+
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row">
+                    <h5>Color List</h5>
+                        <div class="form-group col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                            {% for color in mode_dict['color_list'] %}
+                                <div class="form-control">
+                                    {{ color }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+<!-- /time off request modal -->
